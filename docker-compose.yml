@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: virtual-it-company-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: virtual_it_company
+    ports:
+      - "5432:5432"
+    volumes:
+      - virtual_it_company_pgdata:/var/lib/postgresql/data
+
+volumes:
+  virtual_it_company_pgdata:
+
