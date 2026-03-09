@@ -3,6 +3,8 @@ export type AuthUser = {
   email: string;
   name: string;
   role: 'STUDENT' | 'TEACHER';
+  rating?: number;
+  totalPoints?: number;
 };
 
 const TOKEN_KEY = 'vitco_token';
@@ -33,5 +35,10 @@ export function getStoredUser(): AuthUser | null {
 
 export function setStoredUser(user: AuthUser) {
   localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
+export function useAuth() {
+  const user = getStoredUser();
+  return { user, isLoggedIn: !!user };
 }
 

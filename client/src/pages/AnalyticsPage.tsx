@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { listTeams, teamAnalytics, type Team, type TeamAnalytics } from '../api/endpoints';
+import { listTeams, teamAnalytics, type Team, type TeamAnalytics, type AuditLog } from '../api/endpoints';
+import { AuditLogPanel } from '../components/AuditLogPanel';
 
 export function AnalyticsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamId, setTeamId] = useState<string>('');
   const [data, setData] = useState<TeamAnalytics | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showAuditLogs, setShowAuditLogs] = useState(false);
 
   useEffect(() => {
     async function boot() {
@@ -48,21 +50,28 @@ export function AnalyticsPage() {
           <div className="text-2xl font-semibold">Аналитика</div>
           <div className="mt-1 text-sm text-slate-400">Velocity, статус задач и топ участников команды.</div>
         </div>
-
-        <select
-          value={teamId}
-          onChange={(e) => setTeamId(e.target.value)}
-          className="rounded-xl bg-slate-900 px-4 py-3 text-sm ring-1 ring-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
-        >
-          <option value="" disabled>
-            Выбери команду
-          </option>
-          {teams.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowAuditLogs(true)}
+            className="rounded-xl bg-slate-800 px-4 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-700 ring-1 ring-slate-700"
+          >
+            📋 История активности
+          </button>
+          <select
+            value={teamId}
+            onChange={(e) => setTeamId(e.target.value)}
+            className="rounded-xl bg-slate-900 px-4 py-3 text-sm ring-1 ring-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
+          >
+            <option value="" disabled>
+              Выбери команду
             </option>
-          ))}
-        </select>
+            {teams.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {error ? <div className="rounded-2xl bg-rose-900/30 p-4 text-sm text-rose-200">{error}</div> : null}
@@ -130,6 +139,15 @@ export function AnalyticsPage() {
                         <div className="font-semibold text-emerald-300">{m.pointsDone} pts</div>
                         <div>{m.tasksDone} задач</div>
                       </div>
+
+      {/* Audit Log Panel */}
+      {teamId && (
+        <AuditLogPanel
+          teamId={teamId}
+          isOpen={showAuditLogs}
+          onClose={() => setShowAuditLogs(false)}
+        />
+      )}
                     </div>
                   ))
                 )}

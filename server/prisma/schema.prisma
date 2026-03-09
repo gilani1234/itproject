@@ -25,21 +25,72 @@ enum TaskStatus {
   DONE
 }
 
+enum AuditAction {
+  TASK_CREATE
+  TASK_UPDATE
+  TASK_DELETE
+  TASK_LOCK
+  TASK_UNLOCK
+  SPRINT_CREATE
+  SPRINT_UPDATE
+  SPRINT_CLOSE
+  SPRINT_LOCK
+  SPRINT_UNLOCK
+  MESSAGE_CREATE
+  MESSAGE_DELETE
+  FILE_UPLOAD
+  FILE_DELETE
+  MEMBER_ADD
+  MEMBER_REMOVE
+  TEAM_CREATE
+  TEAM_UPDATE
+}
+
+enum ControlType {
+  RK1
+  RK2
+  EXAM
+}
+
+enum AchievementType {
+  FIRST_TASK
+  SPRINT_LEADER
+  PERFECT_ATTENDANCE
+  TEAM_PLAYER
+  CODE_REVIEWER
+  LEADER
+}
+
 model User {
   id           String       @id @default(uuid())
   email        String       @unique
   name         String
   passwordHash String
   role         Role         @default(STUDENT)
+  rating       Int          @default(0)
+  totalPoints  Int          @default(0)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
-  memberships  TeamMember[]
-  assigned     Task[]       @relation("TaskAssignee")
-  createdTasks Task[]       @relation("TaskCreator")
-  messages     Message[]
-  taskComments TaskComment[]
-  taskHistory  TaskHistory[]
+  memberships     TeamMember[]
+  assigned        Task[]       @relation("TaskAssignee")
+  createdTasks    Task[]       @relation("TaskCreator")
+  messages        Message[]
+  taskComments    TaskComment[]
+  taskHistory     TaskHistory[]
+  ratings         SprintRating[]
+  auditLogs       AuditLog[]
+  
+  reviewsGiven    PeerReview[] @relation("ReviewsGiven")
+  reviewsReceived PeerReview[] @relation("ReviewsReceived")
+  individualTasks IndividualTask[]
+  plannings       SprintPlanning[] @relation("PlanningCreator")
+  reviews         SprintReview[] @relation("ReviewCreator")
+  retros          Retrospective[] @relation("RetroCreator")
+  notifications   Notification[]
+  achievements    Achievement[]
+  controlResults  ControlResult[]
+  controlsCreated ControlPoint[]
 }
 
 model Team {
@@ -52,6 +103,10 @@ model Team {
   sprints   Sprint[]
   tasks     Task[]
   messages  Message[]
+  plannings SprintPlanning[]
+  reviews   SprintReview[]
+  retros    Retrospective[]
+  controls  ControlPoint[]
 }
 
 model TeamMember {
@@ -68,19 +123,23 @@ model TeamMember {
 }
 
 model Sprint {
-  id        String    @id @default(uuid())
-  teamId    String
-  name      String
-  startsAt  DateTime
-  endsAt    DateTime
-  // можно считать активным, если now() между startsAt и endsAt,
-  // но флаг поможет при отчётах
-  isClosed  Boolean   @default(false)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id           String    @id @default(uuid())
+  teamId       String
+  name         String
+  startsAt     DateTime
+  endsAt       DateTime
+  isClosed     Boolean   @default(false)
+  isLocked     Boolean   @default(false)
+  scumMasterId String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  team      Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  tasks     Task[]
+  team       Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  tasks      Task[]
+  ratings    SprintRating[]
+  plannings  SprintPlanning[]
+  reviews    SprintReview[]
+  retros     Retrospective[]
 }
 
 model Task {
@@ -94,6 +153,7 @@ model Task {
   points      Int?
   deadline    DateTime?
   order       Int         @default(0)
+  isLocked    Boolean     @default(false)
 
   assigneeId  String?
   createdById String
@@ -154,15 +214,202 @@ model TaskAttachment {
 }
 
 model Message {
-  id        String   @id @default(uuid())
-  teamId    String
-  userId    String
-  text      String
-  createdAt DateTime @default(now())
+  id          String   @id @default(uuid())
+  teamId      String
+  userId      String
+  text        String
+  createdAt   DateTime @default(now())
 
-  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attachments MessageAttachment[]
 
   @@index([teamId, createdAt])
+}
+
+model MessageAttachment {
+  id        String   @id @default(uuid())
+  messageId String
+  label     String
+  url       String
+  createdAt DateTime @default(now())
+
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+}
+
+model SprintRating {
+  id        String   @id @default(uuid())
+  sprintId  String
+  userId    String
+  points    Int      @default(0)
+  feedback  String?
+  ratedBy   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime  @updatedAt
+
+  sprint    Sprint   @relation(fields: [sprintId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sprintId, userId])
+  @@index([userId, createdAt])
+}
+
+model AuditLog {
+  id        String     @id @default(uuid())
+  userId    String
+  action    AuditAction
+  entityType String
+  entityId  String
+  details   String?
+  changedBy String?
+  createdAt DateTime   @default(now())
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+  @@index([action])
+}
+
+model PeerReview {
+  id        String   @id @default(uuid())
+  fromUserId String
+  toUserId  String
+  sprinkId  String?
+  rating    Int      @default(5)
+  comment   String?
+  createdAt DateTime @default(now())
+
+  fromUser  User     @relation("ReviewsGiven", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser    User     @relation("ReviewsReceived", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@unique([fromUserId, toUserId])
+  @@index([toUserId])
+}
+
+model IndividualTask {
+  id          String   @id @default(uuid())
+  userId      String
+  title       String
+  description String?
+  completed   Boolean  @default(false)
+  dueDate     DateTime?
+  points      Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, completed])
+}
+
+model SprintPlanning {
+  id        String   @id @default(uuid())
+  sprintId  String
+  teamId    String
+  content   String
+  createdBy String
+  createdAt DateTime @default(now())
+
+  sprint    Sprint   @relation(fields: [sprintId], references: [id], onDelete: Cascade)
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  creator   User     @relation("PlanningCreator", fields: [createdBy], references: [id])
+
+  @@index([sprintId])
+}
+
+model SprintReview {
+  id        String   @id @default(uuid())
+  sprintId  String
+  teamId    String
+  summary   String
+  completed Int      @default(0)
+  notCompleted Int @default(0)
+  createdBy String
+  createdAt DateTime @default(now())
+
+  sprint    Sprint   @relation(fields: [sprintId], references: [id], onDelete: Cascade)
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  creator   User     @relation("ReviewCreator", fields: [createdBy], references: [id])
+
+  @@index([sprintId])
+}
+
+model Retrospective {
+  id        String   @id @default(uuid())
+  sprintId  String
+  teamId    String
+  whatWent  String?
+  whatFailed String?
+  improvements String?
+  createdBy String
+  createdAt DateTime @default(now())
+
+  sprint    Sprint   @relation(fields: [sprintId], references: [id], onDelete: Cascade)
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  creator   User     @relation("RetroCreator", fields: [createdBy], references: [id])
+
+  @@index([sprintId])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  type      String   @default("info")
+  relatedId String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+}
+
+model Achievement {
+  id        String     @id @default(uuid())
+  userId    String
+  type      AchievementType
+  description String
+  earnedAt  DateTime   @default(now())
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+  @@index([userId])
+}
+
+model ControlPoint {
+  id        String     @id @default(uuid())
+  teamId    String
+  type      ControlType
+  title     String
+  description String?
+  dueDate   DateTime?
+  maxPoints Int        @default(100)
+  createdBy String
+  createdAt DateTime   @default(now())
+
+  team      Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  creator   User       @relation(fields: [createdBy], references: [id])
+  results   ControlResult[]
+
+  @@index([teamId, type])
+}
+
+model ControlResult {
+  id          String   @id @default(uuid())
+  controlPointId String
+  userId      String
+  score       Int      @default(0)
+  feedback    String?
+  submittedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  controlPoint ControlPoint @relation(fields: [controlPointId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([controlPointId, userId])
 }
 

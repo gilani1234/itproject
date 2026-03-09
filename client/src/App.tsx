@@ -9,6 +9,7 @@ import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { RegisterPage } from './pages/RegisterPage';
 import { TeamsPage } from './pages/TeamsPage';
+import { StudentsPage } from './pages/StudentsPage';
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
         <Route index element={<DashboardPage />} />
         <Route path="teams" element={<TeamsPage />} />
         <Route path="kanban" element={<KanbanPage />} />
+        <Route path="students" element={<StudentsPage />} />
         <Route path="chat" element={<ChatPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="profile" element={<ProfilePage />} />

@@ -73,3 +73,61 @@ teamsRouter.post('/:teamId/members', async (req, res) => {
   return res.status(201).json({ member });
 });
 
+const updateTeamSchema = z.object({ name: z.string().min(2).max(120) });
+
+teamsRouter.patch('/:teamId', async (req, res) => {
+  if (req.user!.role !== 'TEACHER') {
+    return res.status(403).json({ error: 'Only teacher can edit teams' });
+  }
+
+  const { teamId } = req.params;
+  const parsed = updateTeamSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
+
+  const team = await prisma.team.findUnique({ where: { id: teamId } });
+  if (!team) return res.status(404).json({ error: 'Team not found' });
+
+  const updated = await prisma.team.update({
+    where: { id: teamId },
+    data: { name: parsed.data.name },
+    include: {
+      members: {
+        include: {
+          user: { select: { id: true, name: true, email: true, role: true } },
+        },
+      },
+    },
+  });
+
+  return res.json({ team: updated });
+});
+
+teamsRouter.delete('/:teamId', async (req, res) => {
+  if (req.user!.role !== 'TEACHER') {
+    return res.status(403).json({ error: 'Only teacher can delete teams' });
+  }
+
+  const { teamId } = req.params;
+
+  const team = await prisma.team.findUnique({ where: { id: teamId } });
+  if (!team) return res.status(404).json({ error: 'Team not found' });
+
+  // Удаляем всё связанное с командой
+  await prisma.teamMember.deleteMany({ where: { teamId } });
+  await prisma.taskComment.deleteMany({
+    where: { task: { teamId } },
+  });
+  await prisma.taskHistory.deleteMany({
+    where: { task: { teamId } },
+  });
+  await prisma.taskAttachment.deleteMany({
+    where: { task: { teamId } },
+  });
+  await prisma.task.deleteMany({ where: { teamId } });
+  await prisma.message.deleteMany({ where: { teamId } });
+  await prisma.sprint.deleteMany({ where: { teamId } });
+  await prisma.team.delete({ where: { id: teamId } });
+
+  return res.json({ success: true });
+});
+

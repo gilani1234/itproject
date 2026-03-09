@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
+import { getTeamAuditLogs } from '../lib/audit.js';
 
 export const analyticsRouter = Router();
 
@@ -89,5 +90,22 @@ analyticsRouter.get('/team', async (req, res) => {
     velocity,
     topMembers: perUserEnriched,
   });
+});
+
+// Get team audit logs (activity history)
+analyticsRouter.get('/team/audit', async (req, res) => {
+  const parsed = teamAnalyticsQuery.safeParse(req.query);
+  if (!parsed.success) return res.status(400).json({ error: 'teamId is required' });
+  const { teamId } = parsed.data;
+
+  const userId = req.user!.id;
+  const member = await prisma.teamMember.findUnique({
+    where: { teamId_userId: { teamId, userId } },
+  });
+  if (!member) return res.status(403).json({ error: 'Not a team member' });
+
+  const auditLogs = await getTeamAuditLogs(teamId);
+
+  return res.json({ auditLogs });
 });
 

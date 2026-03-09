@@ -67,7 +67,7 @@ authRouter.post('/login', async (req, res) => {
   const token = signToken({ sub: user.id, role: user.role });
   return res.json({
     token,
-    user: { id: user.id, email: user.email, name: user.name, role: user.role },
+    user: { id: user.id, email: user.email, name: user.name, role: user.role, rating: user.rating, totalPoints: user.totalPoints },
   });
 });
 
@@ -75,7 +75,7 @@ authRouter.get('/me', requireAuth, async (req, res) => {
   const userId = req.user!.id;
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, email: true, name: true, role: true, createdAt: true },
+    select: { id: true, email: true, name: true, role: true, rating: true, totalPoints: true, createdAt: true },
   });
   return res.json({ user });
 });

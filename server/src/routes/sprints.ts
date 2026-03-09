@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
+import { logAudit, getEntityAuditLogs } from '../lib/audit.js';
 
 export const sprintsRouter = Router();
 
@@ -67,6 +68,14 @@ sprintsRouter.post('/team/:teamId', async (req, res) => {
     },
   });
 
+  await logAudit({
+    userId,
+    action: 'SPRINT_CREATE',
+    entityType: 'SPRINT',
+    entityId: sprint.id,
+    details: JSON.stringify({ name: sprint.name, duration: `${startsAt.toISOString()} - ${endsAt.toISOString()}` }),
+  });
+
   return res.status(201).json({ sprint });
 });
 
@@ -89,10 +98,67 @@ sprintsRouter.patch('/:sprintId', async (req, res) => {
   const updated = await prisma.sprint.update({
     where: { id: sprintId },
     data: {
-      isClosed: parsed.data.isClosed ?? true,
+      isClosed: parsed.data.isClosed ?? sprint.isClosed,
     },
   });
 
+  await logAudit({
+    userId,
+    action: parsed.data.isClosed ? 'SPRINT_CLOSE' : 'SPRINT_UPDATE',
+    entityType: 'SPRINT',
+    entityId: sprintId,
+    details: JSON.stringify({ isClosed: updated.isClosed }),
+  });
+
   return res.json({ sprint: updated });
+});
+
+// Lock/Unlock sprint (teacher only)
+const toggleLockSchema = z.object({
+  isLocked: z.boolean(),
+});
+
+sprintsRouter.patch('/:sprintId/lock', async (req, res) => {
+  const { sprintId } = req.params;
+  const parsed = toggleLockSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
+
+  const sprint = await prisma.sprint.findUnique({ where: { id: sprintId } });
+  if (!sprint) return res.status(404).json({ error: 'Sprint not found' });
+
+  const userId = req.user!.id;
+  if (req.user!.role !== 'TEACHER') return res.status(403).json({ error: 'Only teachers can lock sprints' });
+
+  await prisma.sprint.update({
+    where: { id: sprintId },
+    data: { isLocked: parsed.data.isLocked },
+  });
+
+  await logAudit({
+    userId,
+    action: parsed.data.isLocked ? 'SPRINT_LOCK' : 'SPRINT_UNLOCK',
+    entityType: 'SPRINT',
+    entityId: sprintId,
+  });
+
+  return res.json({ success: true });
+});
+
+// Get sprint audit logs
+sprintsRouter.get('/:sprintId/audit', async (req, res) => {
+  const { sprintId } = req.params;
+  const userId = req.user!.id;
+
+  const sprint = await prisma.sprint.findUnique({ where: { id: sprintId } });
+  if (!sprint) return res.status(404).json({ error: 'Sprint not found' });
+
+  const isMember = await prisma.teamMember.findUnique({
+    where: { teamId_userId: { teamId: sprint.teamId, userId } },
+  });
+  if (!isMember) return res.status(403).json({ error: 'Not a team member' });
+
+  const auditLogs = await getEntityAuditLogs('SPRINT', sprintId);
+
+  return res.json({ auditLogs });
 });
 

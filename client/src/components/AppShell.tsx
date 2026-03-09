@@ -5,6 +5,7 @@ const navItems = [
   { to: '/app', label: 'Дашборд' },
   { to: '/app/teams', label: 'Команды' },
   { to: '/app/kanban', label: 'Kanban' },
+  { to: '/app/students', label: 'Студенты' },
   { to: '/app/chat', label: 'Чат' },
   { to: '/app/analytics', label: 'Аналитика' },
   { to: '/app/profile', label: 'Профиль' },
