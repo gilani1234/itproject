@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { listMessages, listTeams, sendMessage, uploadMessageAttachment, type Team } from '../api/endpoints';
 import { ChatMessageAttachments } from '../components/ChatMessageAttachments';
 import { useAuth } from '../lib/auth';
@@ -147,12 +148,15 @@ export function ChatPage() {
             const canDelete = user?.id === m.user.id || user?.role === 'TEACHER';
             
             return (
-              <div key={m.id} className="rounded-2xl bg-slate-800 px-4 py-3">
+              <div key={m.id} className="rounded-2xl bg-slate-800 hover:bg-slate-750 px-4 py-3 transition">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{m.user.name}</span>
-                    <span className="text-xs text-slate-400">{m.user.role === 'TEACHER' ? 'преподаватель' : 'студент'}</span>
-                  </div>
+                  <Link
+                    to={`/app/profile/${m.user.id}`}
+                    className="flex items-center gap-2 hover:opacity-80 transition"
+                  >
+                    <span className="text-sm font-medium text-emerald-400">{m.user.name}</span>
+                    <span className="text-xs text-slate-500">{m.user.role === 'TEACHER' ? '👨‍🏫' : '👤'}</span>
+                  </Link>
                   <span className="text-xs text-slate-500">
                     {new Date(m.createdAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
                   </span>

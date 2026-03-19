@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   addSprintRating,
   addTeamMember,
@@ -298,13 +299,17 @@ export function TeamsPage() {
                   <p className="text-sm text-slate-400 mb-3">Участники</p>
                   <div className="space-y-2">
                     {selectedTeam.members.map((m) => (
-                      <div key={m.id} className="flex items-center justify-between rounded-lg bg-slate-950 px-3 py-2">
+                      <Link
+                        key={m.id}
+                        to={`/app/profile/${m.userId}`}
+                        className="flex items-center justify-between rounded-lg bg-slate-950 hover:bg-slate-900 px-3 py-2 transition"
+                      >
                         <div>
-                          <p className="text-sm font-medium">{m.user.name}</p>
+                          <p className="text-sm font-medium text-emerald-400">{m.user.name}</p>
                           <p className="text-xs text-slate-500">{m.user.email}</p>
                         </div>
                         <span className="text-xs text-emerald-300">{m.teamRole}</span>
-                      </div>
+                      </Link>
                     ))}
                   </div>
                 </div>
@@ -363,14 +368,17 @@ export function TeamsPage() {
                       const existing = ratings.find((r) => r.userId === m.userId);
                       return (
                         <div key={m.id} className="flex items-center justify-between rounded-lg bg-slate-950 px-4 py-3">
-                          <div>
+                          <Link
+                            to={`/app/profile/${m.userId}`}
+                            className="flex-1 hover:text-emerald-400 transition"
+                          >
                             <p className="text-sm font-medium">{m.user.name}</p>
                             {existing ? (
                               <p className="text-xs text-emerald-300 mt-1">✓ {existing.points} балл(ов)</p>
                             ) : (
                               <p className="text-xs text-slate-500 mt-1">Не оценен</p>
                             )}
-                          </div>
+                          </Link>
                           <button
                             onClick={() => setRatingModal({ userId: m.userId, userName: m.user.name })}
                             className="rounded-lg bg-slate-800 px-3 py-2 text-xs text-slate-200 hover:bg-slate-700"

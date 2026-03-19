@@ -8,6 +8,7 @@ import { ratingsRouter } from './ratings.js';
 import { sprintsRouter } from './sprints.js';
 import { tasksRouter } from './tasks.js';
 import { teamsRouter } from './teams.js';
+import { lmsRouter } from './lms.js';
 import { router as featuresRouter } from './features.js';
 
 export const apiRouter = Router();
@@ -20,5 +21,6 @@ apiRouter.use('/ratings', requireAuth, ratingsRouter);
 apiRouter.use('/comments', requireAuth, commentsRouter);
 apiRouter.use('/chat', requireAuth, chatRouter);
 apiRouter.use('/analytics', requireAuth, analyticsRouter);
+apiRouter.use('/lms', requireAuth, lmsRouter);
 apiRouter.use('/features', requireAuth, featuresRouter);
 

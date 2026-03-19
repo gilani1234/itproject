@@ -1,10 +1,11 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { clearAuth, getStoredUser } from '../lib/auth';
+import { NavLink, Link, Outlet, useNavigate } from 'react-router-dom';
+import { clearAuth, getStoredUser, getAvatarUrl } from '../lib/auth';
 
 const navItems = [
   { to: '/app', label: 'Дашборд' },
   { to: '/app/teams', label: 'Команды' },
   { to: '/app/kanban', label: 'Kanban' },
+  { to: '/app/lessons', label: '📚 Лекции' },
   { to: '/app/students', label: 'Студенты' },
   { to: '/app/chat', label: 'Чат' },
   { to: '/app/analytics', label: 'Аналитика' },
@@ -27,10 +28,7 @@ export function AppShell() {
                 <div className="text-xs text-slate-400">Виртуальная IT-компания</div>
               </div>
             </div>
-          </div>
-
-          <div className="p-4">
-            <div className="rounded-xl bg-slate-900 px-4 py-3">
+            <div className="rounded-xl bg-slate-900 px-4 py-3 mt-4">
               <div className="text-xs text-slate-400">Роль</div>
               <div className="text-sm font-medium">{user?.role === 'TEACHER' ? 'Преподаватель' : 'Студент'}</div>
             </div>
@@ -70,13 +68,26 @@ export function AppShell() {
         <main className="flex min-w-0 flex-1 flex-col">
           <header className="flex h-16 items-center justify-between border-b border-slate-800 bg-slate-950 px-6">
             <div className="text-lg font-semibold">Virtual IT Company</div>
-            <div className="flex items-center gap-3 rounded-xl bg-slate-900 px-4 py-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-700">👤</div>
+            <Link
+              to={`/app/profile`}
+              className="flex items-center gap-3 rounded-xl bg-slate-900 hover:bg-slate-800 px-4 py-2 transition"
+            >
+              {user?.avatar ? (
+                <img
+                  src={getAvatarUrl(user.avatar)}
+                  alt={user.name}
+                  className="h-8 w-8 rounded-lg object-cover bg-emerald-700"
+                />
+              ) : (
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-700 text-lg font-bold">
+                  {user?.name?.[0]?.toUpperCase() ?? '👤'}
+                </div>
+              )}
               <div className="leading-tight">
-                <div className="text-sm font-medium">{user?.name ?? 'Пользователь'}</div>
+                <div className="text-sm font-medium text-emerald-400">{user?.name ?? 'Пользователь'}</div>
                 <div className="text-xs text-slate-400">{user?.email ?? ''}</div>
               </div>
-            </div>
+            </Link>
           </header>
 
           <div className="min-h-0 flex-1 overflow-auto p-6">

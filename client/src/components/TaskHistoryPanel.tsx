@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { getTaskHistory, type AuditLog, type TaskHistoryRecord } from '../api/endpoints';
 
 interface TaskHistoryPanelProps {
@@ -82,7 +83,14 @@ export function TaskHistoryPanel({ taskId, isOpen, onClose }: TaskHistoryPanelPr
                     </div>
                   </div>
                   <div className="ml-2 text-right text-xs text-slate-500">
-                    {record.user?.name && <div>{record.user.name}</div>}
+                    {record.user?.name && (
+                      <Link
+                        to={`/app/profile/${record.user.id}`}
+                        className="text-emerald-400 hover:text-emerald-300 transition block"
+                      >
+                        {record.user.name}
+                      </Link>
+                    )}
                     <div>{formatDate(record.createdAt)}</div>
                   </div>
                 </div>
@@ -100,7 +108,14 @@ export function TaskHistoryPanel({ taskId, isOpen, onClose }: TaskHistoryPanelPr
                     )}
                   </div>
                   <div className="ml-2 text-right text-xs text-slate-500">
-                    {log.user?.name && <div>{log.user.name}</div>}
+                    {log.user?.name && (
+                      <Link
+                        to={`/app/profile/${log.user.id}`}
+                        className="text-emerald-400 hover:text-emerald-300 transition block"
+                      >
+                        {log.user.name}
+                      </Link>
+                    )}
                     <div>{formatDate(log.createdAt)}</div>
                   </div>
                 </div>

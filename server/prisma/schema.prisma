@@ -69,6 +69,8 @@ model User {
   role         Role         @default(STUDENT)
   rating       Int          @default(0)
   totalPoints  Int          @default(0)
+  avatar       String?      // URL to avatar image
+  bio          String?      // User bio/about
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
@@ -91,6 +93,10 @@ model User {
   achievements    Achievement[]
   controlResults  ControlResult[]
   controlsCreated ControlPoint[]
+  
+  lessonsCreated    Lesson[]
+  lessonCompletions LessonCompletion[]
+  quizSubmissions   QuizSubmission[]
 }
 
 model Team {
@@ -107,6 +113,7 @@ model Team {
   reviews   SprintReview[]
   retros    Retrospective[]
   controls  ControlPoint[]
+  lessons   Lesson[]
 }
 
 model TeamMember {
@@ -411,5 +418,139 @@ model ControlResult {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([controlPointId, userId])
+}
+
+// ====== LMS: LESSONS ======
+model Lesson {
+  id          String   @id @default(uuid())
+  teamId      String
+  title       String
+  description String?
+  order       Int      @default(0)
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  team       Team                @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  creator    User                @relation(fields: [createdBy], references: [id])
+  contents   LessonContent[]
+  quizzes    Quiz[]
+  completions LessonCompletion[]
+
+  @@index([teamId])
+}
+
+enum LessonContentType {
+  FILE_PDF
+  FILE_WORD
+  FILE_POWERPOINT
+  VIDEO_YOUTUBE
+  TEXT
+}
+
+model LessonContent {
+  id        String              @id @default(uuid())
+  lessonId  String
+  type      LessonContentType
+  title     String
+  url       String?             // YouTube URL or file URL
+  text      String?             // For TEXT type
+  order     Int                 @default(0)
+  createdAt DateTime            @default(now())
+
+  lesson    Lesson              @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId])
+}
+
+model LessonCompletion {
+  id        String   @id @default(uuid())
+  lessonId  String
+  userId    String
+  completedAt DateTime @default(now())
+
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonId, userId])
+  @@index([userId])
+}
+
+// ====== LMS: QUIZZES ======
+model Quiz {
+  id          String   @id @default(uuid())
+  lessonId    String
+  title       String
+  description String?
+  passingScore Int     @default(70)
+  maxAttempts Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  lesson      Lesson         @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  questions   QuizQuestion[]
+  submissions QuizSubmission[]
+
+  @@index([lessonId])
+}
+
+enum QuestionType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  TEXT
+}
+
+model QuizQuestion {
+  id        String        @id @default(uuid())
+  quizId    String
+  text      String
+  type      QuestionType
+  order     Int           @default(0)
+  createdAt DateTime      @default(now())
+
+  quiz      Quiz          @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  options   QuizOption[]
+  answers   QuizAnswer[]
+
+  @@index([quizId])
+}
+
+model QuizOption {
+  id        String   @id @default(uuid())
+  questionId String
+  text      String
+  isCorrect Boolean  @default(false)
+  order     Int      @default(0)
+
+  question  QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model QuizSubmission {
+  id        String   @id @default(uuid())
+  quizId    String
+  userId    String
+  score     Int      @default(0)
+  maxScore  Int      @default(100)
+  passed    Boolean  @default(false)
+  submittedAt DateTime @default(now())
+
+  quiz      Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers   QuizAnswer[]
+
+  @@index([quizId, userId])
+  @@index([userId])
+}
+
+model QuizAnswer {
+  id           String   @id @default(uuid())
+  submissionId String
+  questionId   String
+  selectedOptionId String?
+  textAnswer   String?
+  isCorrect    Boolean  @default(false)
+
+  submission   QuizSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  question     QuizQuestion   @relation(fields: [questionId], references: [id], onDelete: Cascade)
 }
 

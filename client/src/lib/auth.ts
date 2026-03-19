@@ -1,3 +1,17 @@
+// Универсальная функция для получения src аватара
+export function getAvatarUrl(avatar?: string | null): string | undefined {
+  if (!avatar) return undefined;
+  // Если это внешний url
+  if (/^https?:\/\//.test(avatar)) return avatar;
+  // Если это локальный путь (начинается с /uploads/)
+  if (avatar.startsWith('/uploads/')) {
+    const api = import.meta.env.VITE_API_URL ?? 'http://localhost:3001/api';
+    // Обрезаем /api если есть
+    const base = api.replace(/\/api$/, '');
+    return base + avatar;
+  }
+  return avatar;
+}
 export type AuthUser = {
   id: string;
   email: string;
@@ -5,6 +19,8 @@ export type AuthUser = {
   role: 'STUDENT' | 'TEACHER';
   rating?: number;
   totalPoints?: number;
+  avatar?: string | null;
+  bio?: string | null;
 };
 
 const TOKEN_KEY = 'vitco_token';

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { getTeamAuditLogs, type AuditLog } from '../api/endpoints';
 
 interface AuditLogPanelProps {
@@ -98,7 +99,14 @@ export function AuditLogPanel({ teamId, isOpen, onClose }: AuditLogPanelProps) {
                     )}
                     {log.user && (
                       <div className="mt-1 text-xs text-slate-600">
-                        Пользователь: {log.user.name} ({log.user.email})
+                        Пользователь:{' '}
+                        <Link
+                          to={`/app/profile/${log.user.id}`}
+                          className="text-emerald-400 hover:text-emerald-300 transition"
+                        >
+                          {log.user.name}
+                        </Link>
+                        {' '}({log.user.email})
                       </div>
                     )}
                   </div>

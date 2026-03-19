@@ -1,3 +1,28 @@
+import { getToken } from '../lib/auth';
+// Upload avatar (file)
+export async function uploadAvatar(file: File): Promise<{ avatar: string }> {
+  const token = getToken();
+  const formData = new FormData();
+  formData.append('avatar', file);
+  const res = await fetch(
+    (import.meta.env.VITE_API_URL ?? 'http://localhost:3001/api') + '/auth/avatar',
+    {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      body: formData,
+    }
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    const parsed = text ? safeJson(text) : null;
+    const message =
+      parsed && typeof parsed === 'object' && 'error' in parsed && typeof parsed.error === 'string'
+        ? parsed.error
+        : 'Ошибка загрузки аватара';
+    throw new Error(message);
+  }
+  return res.json();
+}
 import type { AuthUser } from '../lib/auth';
 import { request } from './http';
 
@@ -334,16 +359,16 @@ export type SprintPlanning = {
   teamId: string;
   content: string;
   createdBy: string;
-  creator?: { name: string; email: string };
+  creator?: { id: string; name: string; email: string };
   createdAt: string;
 };
 
 export function getSprintPlanning(sprintId: string) {
-  return request<{ planning: SprintPlanning | null }>('GET', `/features/sprints/${sprintId}/planning`);
+  return request<{ planning: SprintPlanning | null }>('GET', `/sprints/${sprintId}/planning`);
 }
 
 export function submitSprintPlanning(sprintId: string, content: string) {
-  return request<{ planning: SprintPlanning }>('POST', `/features/sprints/${sprintId}/planning`, { content });
+  return request<{ planning: SprintPlanning }>('POST', `/sprints/${sprintId}/planning`, { content });
 }
 
 // Sprint Review
@@ -355,16 +380,16 @@ export type SprintReview = {
   completed: number;
   notCompleted: number;
   createdBy: string;
-  creator?: { name: string; email: string };
+  creator?: { id: string; name: string; email: string };
   createdAt: string;
 };
 
 export function getSprintReview(sprintId: string) {
-  return request<{ review: SprintReview | null }>('GET', `/features/sprints/${sprintId}/review`);
+  return request<{ review: SprintReview | null }>('GET', `/sprints/${sprintId}/review`);
 }
 
 export function submitSprintReview(sprintId: string, summary: string, completed: number, notCompleted: number) {
-  return request<{ review: SprintReview }>('POST', `/features/sprints/${sprintId}/review`, { summary, completed, notCompleted });
+  return request<{ review: SprintReview }>('POST', `/sprints/${sprintId}/review`, { summary, completed, notCompleted });
 }
 
 // Retrospective
@@ -376,16 +401,16 @@ export type Retrospective = {
   whatFailed?: string;
   improvements?: string;
   createdBy: string;
-  creator?: { name: string; email: string };
+  creator?: { id: string; name: string; email: string };
   createdAt: string;
 };
 
 export function getRetrospective(sprintId: string) {
-  return request<{ retro: Retrospective | null }>('GET', `/features/sprints/${sprintId}/retrospective`);
+  return request<{ retro: Retrospective | null }>('GET', `/sprints/${sprintId}/retro`);
 }
 
 export function submitRetrospective(sprintId: string, whatWent?: string, whatFailed?: string, improvements?: string) {
-  return request<{ retro: Retrospective }>('POST', `/features/sprints/${sprintId}/retrospective`, { whatWent, whatFailed, improvements });
+  return request<{ retro: Retrospective }>('POST', `/sprints/${sprintId}/retro`, { whatWent, whatFailed, improvements });
 }
 
 // Notifications
@@ -399,6 +424,185 @@ export type Notification = {
   relatedId?: string;
   createdAt: string;
 };
+
+// ====== LMS: LESSONS ======
+
+export type LessonContent = {
+  id: string;
+  lessonId: string;
+  type: 'FILE_PDF' | 'FILE_WORD' | 'FILE_POWERPOINT' | 'VIDEO_YOUTUBE' | 'TEXT';
+  title: string;
+  url?: string;
+  text?: string;
+  order: number;
+  createdAt: string;
+};
+
+export type Lesson = {
+  id: string;
+  teamId: string;
+  title: string;
+  description?: string;
+  order: number;
+  createdBy: string;
+  creator?: { id: string; name: string; email: string };
+  contents?: LessonContent[];
+  quizzes?: Quiz[];
+  completed?: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export function getLessons(teamId?: string) {
+  const query = teamId ? `?teamId=${encodeURIComponent(teamId)}` : '';
+  return request<{ lessons: Lesson[] }>('GET', `/lms/lessons${query}`);
+}
+
+export function getLesson(lessonId: string) {
+  return request<{ lesson: Lesson; completed: boolean }>('GET', `/lms/lessons/${lessonId}`);
+}
+
+export function createLesson(teamId: string, title: string, description?: string) {
+  return request<{ lesson: Lesson }>('POST', '/lms/lessons', { teamId, title, description });
+}
+
+export function updateLesson(lessonId: string, title?: string, description?: string, order?: number) {
+  return request<{ lesson: Lesson }>('PUT', `/lms/lessons/${lessonId}`, { title, description, order });
+}
+
+export function deleteLesson(lessonId: string) {
+  return request<{ success: boolean }>('DELETE', `/lms/lessons/${lessonId}`);
+}
+
+export function addLessonContent(lessonId: string, type: LessonContent['type'], title: string, url?: string, text?: string) {
+  return request<{ content: LessonContent }>('POST', `/lms/lessons/${lessonId}/content`, { lessonId, type, title, url, text });
+}
+
+export function uploadLessonFile(lessonId: string, file: File, title: string) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('title', title);
+
+  const apiBaseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3001/api';
+  const token = getToken();
+
+  return fetch(`${apiBaseUrl}/lms/lessons/${lessonId}/upload`, {
+    method: 'POST',
+    body: formData,
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  }).then(async (res) => {
+    if (!res.ok) {
+      const text = await res.text();
+      const parsed = text ? safeJson(text) : null;
+      const message =
+        parsed && typeof parsed === 'object' && 'error' in parsed && typeof parsed.error === 'string'
+          ? parsed.error
+          : 'Upload failed';
+      throw new Error(message);
+    }
+    return res.json() as Promise<{ content: LessonContent; fileUrl: string }>;
+  });
+}
+
+function safeJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+export function deleteLessonContent(lessonId: string, contentId: string) {
+  return request<{ success: boolean }>('DELETE', `/lms/lessons/${lessonId}/content/${contentId}`);
+}
+
+export function completeLessonLesson(lessonId: string) {
+  return request<{ completion: any }>('POST', `/lms/lessons/${lessonId}/complete`, {});
+}
+
+// ====== LMS: QUIZZES ======
+
+export type QuizOption = {
+  id: string;
+  questionId: string;
+  text: string;
+  isCorrect: boolean;
+  order: number;
+};
+
+export type QuizQuestion = {
+  id: string;
+  quizId: string;
+  text: string;
+  type: 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE' | 'TEXT';
+  order: number;
+  options?: QuizOption[];
+  createdAt: string;
+};
+
+export type Quiz = {
+  id: string;
+  lessonId: string;
+  title: string;
+  description?: string;
+  passingScore: number;
+  maxAttempts: number;
+  questions?: QuizQuestion[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type QuizAnswer = {
+  id: string;
+  submissionId: string;
+  questionId: string;
+  selectedOptionId?: string;
+  textAnswer?: string;
+  isCorrect: boolean;
+};
+
+export type QuizSubmission = {
+  id: string;
+  quizId: string;
+  userId: string;
+  score: number;
+  maxScore: number;
+  passed: boolean;
+  submittedAt: string;
+  answers?: QuizAnswer[];
+};
+
+export function createQuiz(lessonId: string, title: string, description?: string, passingScore?: number, maxAttempts?: number) {
+  return request<{ quiz: Quiz }>('POST', '/lms/quizzes', { lessonId, title, description, passingScore, maxAttempts });
+}
+
+export function getQuiz(quizId: string) {
+  return request<{ quiz: Quiz }>('GET', `/lms/quizzes/${quizId}`);
+}
+
+export function updateQuiz(quizId: string, title?: string, description?: string, passingScore?: number, maxAttempts?: number) {
+  return request<{ quiz: Quiz }>('PUT', `/lms/quizzes/${quizId}`, { title, description, passingScore, maxAttempts });
+}
+
+export function deleteQuiz(quizId: string) {
+  return request<{ success: boolean }>('DELETE', `/lms/quizzes/${quizId}`);
+}
+
+export function addQuizQuestion(quizId: string, text: string, type: QuizQuestion['type'], options?: Array<{ text: string; isCorrect: boolean }>) {
+  return request<{ question: QuizQuestion }>('POST', `/lms/quizzes/${quizId}/questions`, { quizId, text, type, options });
+}
+
+export function deleteQuizQuestion(questionId: string) {
+  return request<{ success: boolean }>('DELETE', `/lms/questions/${questionId}`);
+}
+
+export function submitQuiz(quizId: string, answers: Array<{ questionId: string; selectedOptionId?: string; textAnswer?: string }>) {
+  return request<{ submission: QuizSubmission; passed: boolean }>('POST', `/lms/quizzes/${quizId}/submit`, { answers });
+}
+
+export function getQuizSubmissions(quizId: string) {
+  return request<{ submissions: QuizSubmission[] }>('GET', `/lms/quizzes/${quizId}/submissions`);
+}
 
 export function getNotifications() {
   return request<{ notifications: Notification[] }>('GET', '/features/notifications');
@@ -415,11 +619,17 @@ export type PublicStudentProfile = {
   email: string;
   rating: number;
   totalPoints: number;
+  avatar?: string | null;
+  bio?: string | null;
   createdAt: string;
 };
 
 export function listAllStudents() {
   return request<{ users: PublicStudentProfile[] }>('GET', '/features/users');
+}
+
+export function removeStudentFromTeacherTeams(userId: string) {
+  return request<{ success: boolean; removedFromTeams: number }>('DELETE', `/features/students/${userId}`);
 }
 
 export type StudentProfileDetail = PublicStudentProfile & {
@@ -429,6 +639,52 @@ export type StudentProfileDetail = PublicStudentProfile & {
 
 export function getStudentProfile(userId: string) {
   return request<{ user: StudentProfileDetail }>('GET', `/features/users/${userId}`);
+}
+
+export type TeacherStudentPerformance = {
+  student: { id: string; name: string; email: string };
+  sharedTeamIds: string[];
+  sprints: Array<{
+    id: string;
+    teamId: string;
+    name: string;
+    startsAt: string;
+    endsAt: string;
+    isClosed: boolean;
+  }>;
+  projectRatings: Array<{
+    id: string;
+    sprintId: string;
+    points: number;
+    feedback?: string | null;
+    createdAt: string;
+    updatedAt: string;
+    sprint: { id: string; name: string; teamId: string };
+  }>;
+  quizSubmissions: Array<{
+    id: string;
+    quizId: string;
+    score: number;
+    maxScore: number;
+    passed: boolean;
+    submittedAt: string;
+    quiz: { id: string; title: string; lesson: { id: string; title: string; teamId: string } };
+  }>;
+  summary: {
+    quizAverageScore: number;
+    projectAverageScore: number;
+    quizAttempts: number;
+    projectGrades: number;
+  };
+};
+
+export function getTeacherStudentPerformance(userId: string) {
+  return request<TeacherStudentPerformance>('GET', `/features/teacher/students/${userId}/performance`);
+}
+
+// Update own profile
+export function updateProfile(name?: string, avatar?: string | null, bio?: string | null) {
+  return request<{ user: AuthUser }>('PUT', '/auth/me', { name, avatar, bio });
 }
 
 // Achievements
@@ -478,3 +734,4 @@ export function deleteMessage(teamId: string, messageId: string) {
 export function getTeamAuditLogs(teamId: string) {
   return request<{ auditLogs: AuditLog[] }>('GET', `/analytics/team/audit?teamId=${encodeURIComponent(teamId)}`);
 }
+

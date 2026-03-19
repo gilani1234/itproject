@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { listComments, addComment, type TaskComment } from '../api/endpoints';
 
 interface TaskCommentsProps {
@@ -76,17 +77,20 @@ export function TaskComments({ taskId, isLocked, isTeacher }: TaskCommentsProps)
           <div className="text-center text-slate-500 text-sm py-4">Комментариев нет</div>
         ) : (
           comments.map((comment) => (
-            <div key={comment.id} className="bg-slate-800 rounded-lg p-3">
+            <div key={comment.id} className="bg-slate-800 rounded-lg p-3 hover:bg-slate-750 transition">
               <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2">
+                <Link
+                  to={`/app/profile/${comment.userId}`}
+                  className="flex items-center gap-2 hover:opacity-80 transition"
+                >
                   <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 font-semibold text-xs">
                     {comment.user?.name?.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-slate-200">{comment.user?.name}</div>
+                    <div className="text-sm font-medium text-emerald-400">{comment.user?.name}</div>
                     <div className="text-xs text-slate-500">{formatDate(comment.createdAt)}</div>
                   </div>
-                </div>
+                </Link>
               </div>
               <p className="text-sm text-slate-300 whitespace-pre-wrap">{comment.text}</p>
             </div>

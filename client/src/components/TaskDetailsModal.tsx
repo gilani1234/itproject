@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { type Task } from '../api/endpoints';
 import { TaskHistoryPanel } from './TaskHistoryPanel';
 import { TaskAttachments } from './TaskAttachments';
@@ -76,15 +77,18 @@ export function TaskDetailsModal({
             {task.assignee && (
               <div>
                 <h3 className="text-sm font-medium text-slate-300 mb-2">Назначена</h3>
-                <div className="flex items-center gap-2 text-sm">
+                <Link
+                  to={`/app/profile/${task.assignee.id}`}
+                  className="flex items-center gap-2 text-sm hover:opacity-80 transition"
+                >
                   <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 font-semibold">
                     {task.assignee.name?.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <div className="text-slate-100">{task.assignee.name}</div>
+                    <div className="text-emerald-400">{task.assignee.name}</div>
                     <div className="text-xs text-slate-400">{task.assignee.email}</div>
                   </div>
-                </div>
+                </Link>
               </div>
             )}
 

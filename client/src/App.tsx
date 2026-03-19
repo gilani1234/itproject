@@ -7,9 +7,12 @@ import { DashboardPage } from './pages/DashboardPage';
 import { KanbanPage } from './pages/KanbanPage';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { PublicProfilePage } from './pages/PublicProfilePage';
 import { RegisterPage } from './pages/RegisterPage';
 import { TeamsPage } from './pages/TeamsPage';
 import { StudentsPage } from './pages/StudentsPage';
+import { LessonsPage } from './pages/LessonsPage';
+import { LessonViewerPage } from './pages/LessonViewerPage';
 
 export default function App() {
   return (
@@ -33,6 +36,9 @@ export default function App() {
         <Route path="chat" element={<ChatPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="profile" element={<ProfilePage />} />
+        <Route path="profile/:userId" element={<PublicProfilePage />} />
+        <Route path="lessons" element={<LessonsPage />} />
+        <Route path="lessons/:lessonId" element={<LessonViewerPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/app" replace />} />

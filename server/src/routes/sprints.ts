@@ -162,3 +162,204 @@ sprintsRouter.get('/:sprintId/audit', async (req, res) => {
   return res.json({ auditLogs });
 });
 
+// ===== SPRINT PLANNING =====
+const createPlanningSchema = z.object({
+  content: z.string().max(10000),
+});
+
+sprintsRouter.post('/:sprintId/planning', async (req, res) => {
+  const { sprintId } = req.params;
+  const userId = req.user!.id;
+  const parsed = createPlanningSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
+
+  const sprint = await prisma.sprint.findUnique({ where: { id: sprintId }, select: { teamId: true } });
+  if (!sprint) return res.status(404).json({ error: 'Sprint not found' });
+
+  const isMember = await prisma.teamMember.findUnique({
+    where: { teamId_userId: { teamId: sprint.teamId, userId } },
+  });
+  if (!isMember) return res.status(403).json({ error: 'Not a team member' });
+
+  const planning = await prisma.sprintPlanning.create({
+    data: {
+      sprintId,
+      teamId: sprint.teamId,
+      content: parsed.data.content,
+      createdBy: userId,
+    },
+    include: {
+      creator: { select: { id: true, name: true, email: true } },
+    },
+  });
+
+  await logAudit({
+    userId,
+    action: 'PLANNING_CREATE',
+    entityType: 'PLANNING',
+    entityId: planning.id,
+    details: JSON.stringify({ sprintId }),
+  });
+
+  return res.status(201).json({ planning });
+});
+
+sprintsRouter.get('/:sprintId/planning', async (req, res) => {
+  const { sprintId } = req.params;
+  const userId = req.user!.id;
+
+  const sprint = await prisma.sprint.findUnique({ where: { id: sprintId }, select: { teamId: true } });
+  if (!sprint) return res.status(404).json({ error: 'Sprint not found' });
+
+  const isMember = await prisma.teamMember.findUnique({
+    where: { teamId_userId: { teamId: sprint.teamId, userId } },
+  });
+  if (!isMember) return res.status(403).json({ error: 'Not a team member' });
+
+  const planning = await prisma.sprintPlanning.findFirst({
+    where: { sprintId },
+    include: {
+      creator: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return res.json({ planning });
+});
+
+// ===== SPRINT REVIEW =====
+const createReviewSchema = z.object({
+  summary: z.string().max(10000),
+  completed: z.number().int().min(0).optional(),
+  notCompleted: z.number().int().min(0).optional(),
+});
+
+sprintsRouter.post('/:sprintId/review', async (req, res) => {
+  const { sprintId } = req.params;
+  const userId = req.user!.id;
+  const parsed = createReviewSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
+
+  const sprint = await prisma.sprint.findUnique({ where: { id: sprintId }, select: { teamId: true } });
+  if (!sprint) return res.status(404).json({ error: 'Sprint not found' });
+
+  const isTeacher = await ensureTeacher(sprint.teamId, userId);
+  if (!isTeacher) return res.status(403).json({ error: 'Only teacher can create review' });
+
+  const review = await prisma.sprintReview.create({
+    data: {
+      sprintId,
+      teamId: sprint.teamId,
+      summary: parsed.data.summary,
+      completed: parsed.data.completed ?? 0,
+      notCompleted: parsed.data.notCompleted ?? 0,
+      createdBy: userId,
+    },
+    include: {
+      creator: { select: { id: true, name: true, email: true } },
+    },
+  });
+
+  await logAudit({
+    userId,
+    action: 'REVIEW_CREATE',
+    entityType: 'REVIEW',
+    entityId: review.id,
+    details: JSON.stringify({ sprintId, completed: review.completed, notCompleted: review.notCompleted }),
+  });
+
+  return res.status(201).json({ review });
+});
+
+sprintsRouter.get('/:sprintId/review', async (req, res) => {
+  const { sprintId } = req.params;
+  const userId = req.user!.id;
+
+  const sprint = await prisma.sprint.findUnique({ where: { id: sprintId }, select: { teamId: true } });
+  if (!sprint) return res.status(404).json({ error: 'Sprint not found' });
+
+  const isMember = await prisma.teamMember.findUnique({
+    where: { teamId_userId: { teamId: sprint.teamId, userId } },
+  });
+  if (!isMember) return res.status(403).json({ error: 'Not a team member' });
+
+  const review = await prisma.sprintReview.findFirst({
+    where: { sprintId },
+    include: {
+      creator: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return res.json({ review });
+});
+
+// ===== RETROSPECTIVE =====
+const createRetroSchema = z.object({
+  whatWent: z.string().max(5000).optional(),
+  whatFailed: z.string().max(5000).optional(),
+  improvements: z.string().max(5000).optional(),
+});
+
+sprintsRouter.post('/:sprintId/retro', async (req, res) => {
+  const { sprintId } = req.params;
+  const userId = req.user!.id;
+  const parsed = createRetroSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'Invalid payload' });
+
+  const sprint = await prisma.sprint.findUnique({ where: { id: sprintId }, select: { teamId: true } });
+  if (!sprint) return res.status(404).json({ error: 'Sprint not found' });
+
+  const isMember = await prisma.teamMember.findUnique({
+    where: { teamId_userId: { teamId: sprint.teamId, userId } },
+  });
+  if (!isMember) return res.status(403).json({ error: 'Not a team member' });
+
+  const retro = await prisma.retrospective.create({
+    data: {
+      sprintId,
+      teamId: sprint.teamId,
+      whatWent: parsed.data.whatWent,
+      whatFailed: parsed.data.whatFailed,
+      improvements: parsed.data.improvements,
+      createdBy: userId,
+    },
+    include: {
+      creator: { select: { id: true, name: true, email: true } },
+    },
+  });
+
+  await logAudit({
+    userId,
+    action: 'RETRO_CREATE',
+    entityType: 'RETRO',
+    entityId: retro.id,
+    details: JSON.stringify({ sprintId }),
+  });
+
+  return res.status(201).json({ retro });
+});
+
+sprintsRouter.get('/:sprintId/retro', async (req, res) => {
+  const { sprintId } = req.params;
+  const userId = req.user!.id;
+
+  const sprint = await prisma.sprint.findUnique({ where: { id: sprintId }, select: { teamId: true } });
+  if (!sprint) return res.status(404).json({ error: 'Sprint not found' });
+
+  const isMember = await prisma.teamMember.findUnique({
+    where: { teamId_userId: { teamId: sprint.teamId, userId } },
+  });
+  if (!isMember) return res.status(403).json({ error: 'Not a team member' });
+
+  const retro = await prisma.retrospective.findFirst({
+    where: { sprintId },
+    include: {
+      creator: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return res.json({ retro });
+});
+

@@ -14,6 +14,9 @@ import {
 import { HttpError } from '../api/http';
 import { TaskDetailsModal } from '../components/TaskDetailsModal';
 import { SprintLockToggle } from '../components/SprintLockToggle';
+import { SprintPlanningPanel } from '../components/SprintPlanningPanel';
+import { SprintReviewPanel } from '../components/SprintReviewPanel';
+import { RetrospectivePanel } from '../components/RetrospectivePanel';
 import { useAuth } from '../lib/auth';
 
 const columns: { id: TaskStatus; title: string }[] = [
@@ -45,6 +48,11 @@ export function KanbanPage() {
   // Task details modal
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showModal, setShowModal] = useState(false);
+
+  // Scrum ceremonies
+  const [showPlanning, setShowPlanning] = useState(false);
+  const [showReview, setShowReview] = useState(false);
+  const [showRetro, setShowRetro] = useState(false);
 
   // Load teams on mount
   useEffect(() => {
@@ -270,6 +278,29 @@ export function KanbanPage() {
                   Спринт
                 </button>
               </form>
+
+              {sprintId && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowPlanning(true)}
+                    className="rounded-xl bg-cyan-900/50 px-4 py-3 text-sm font-semibold text-cyan-300 hover:bg-cyan-900 ring-1 ring-cyan-800"
+                  >
+                    📋 План
+                  </button>
+                  <button
+                    onClick={() => setShowReview(true)}
+                    className="rounded-xl bg-green-900/50 px-4 py-3 text-sm font-semibold text-green-300 hover:bg-green-900 ring-1 ring-green-800"
+                  >
+                    ✅ Обзор
+                  </button>
+                  <button
+                    onClick={() => setShowRetro(true)}
+                    className="rounded-xl bg-purple-900/50 px-4 py-3 text-sm font-semibold text-purple-300 hover:bg-purple-900 ring-1 ring-purple-800"
+                  >
+                    🔍 Ретро
+                  </button>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -311,7 +342,6 @@ export function KanbanPage() {
               <div className="space-y-3 overflow-y-auto flex-1">
                 {byStatus[col.id].map((task) => {
                     const isTaskLocked = task.isLocked ?? false;
-                    
                     return (
                       <div
                         key={task.id}
@@ -359,6 +389,28 @@ export function KanbanPage() {
           setTasks(prev => prev.map(t => t.id === taskId ? { ...t, isLocked: locked } : t));
         }}
       />
+
+      {/* Scrum Ceremonies */}
+      {sprintId && (
+        <>
+          <SprintPlanningPanel
+            sprintId={sprintId}
+            isOpen={showPlanning}
+            onClose={() => setShowPlanning(false)}
+          />
+          <SprintReviewPanel
+            sprintId={sprintId}
+            isOpen={showReview}
+            onClose={() => setShowReview(false)}
+            isTeacher={isTeacher}
+          />
+          <RetrospectivePanel
+            sprintId={sprintId}
+            isOpen={showRetro}
+            onClose={() => setShowRetro(false)}
+          />
+        </>
+      )}
     </div>
   );
 }
